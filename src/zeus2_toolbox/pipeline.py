@@ -1022,7 +1022,7 @@ def stack_raster(raster, raster_wt=None, write_header=None, pix_flag_list=None,
 
 def read_beam(file_header, array_map=None, obs_log=None, flag_ts=True,
               is_flat=False, is_iv_curve=False, is_total_power=False,
-              is_bias_step=False, auto_file_type=True, **kwargs):
+              is_bias_step=False, auto_file_type=True, inject_sig=None, **kwargs):
     """
     function to read MCE time series data, convert to array map layout, add
     auxiliary information from obs log, and flag outliers if opted
@@ -1105,7 +1105,7 @@ def read_beam(file_header, array_map=None, obs_log=None, flag_ts=True,
 
     if beam is None:
         try:
-            beam = Obs.read_header(filename=file_header)  # read in data
+            beam = Obs.read_header(filename=file_header,inject_sig=inject_sig)  # read in data
         except Exception as err:
             warnings.warn("fail to read in %s due to %s: %s" %
                           (file_header, type(err), err), UserWarning)
@@ -1133,7 +1133,7 @@ def read_beam(file_header, array_map=None, obs_log=None, flag_ts=True,
 
 def read_beam_pair(file_header1, file_header2, array_map=None, obs_log=None,
                    flag_ts=True, is_flat=False, match_same_phase=MATCH_SAME_PHASE,
-                   stack_factor=STACK_FACTOR):
+                   stack_factor=STACK_FACTOR, inject_sig=None):
     """
     function to read in data of a beam pair with read_beam(), then stack the
     time series of beam pair using get_match_phase_obs() with given
@@ -1162,10 +1162,10 @@ def read_beam_pair(file_header1, file_header2, array_map=None, obs_log=None,
     :return: Obs or ObsArray object containing the stacked beam pair
     :rtype: Obs or ObsArray
     """
-
-    beam1, beam2 = [read_beam(file_header, array_map=array_map, obs_log=obs_log,
-                              flag_ts=flag_ts, is_flat=is_flat)
-                    for file_header in (file_header1, file_header2)]
+    beam1 = read_beam(file_header1, array_map=array_map, obs_log=obs_log,
+                              flag_ts=flag_ts, is_flat=is_flat, inject_sig=inject_sig)
+    beam2 = read_beam(file_header2, array_map=array_map, obs_log=obs_log,
+                              flag_ts=flag_ts, is_flat=is_flat, inject_sig=inject_sig)
     matched_beam1, matched_beam2 = get_match_phase_obs(
             beam1, beam2, match_same_phase=match_same_phase)
     stacked_beam_pair = (matched_beam1 + stack_factor * matched_beam2) / 2
@@ -1344,7 +1344,7 @@ def reduce_beam(file_header, write_dir=None, write_suffix="", array_map=None,
                 spat_excl=None, do_clean=False, return_ts=False,
                 return_pix_flag_list=False, plot=False, plot_ts=False,
                 reg_interest=None, plot_flux=False, plot_show=False,
-                plot_save=False):
+                plot_save=False, inject_sig=None):
     """
     a wrapper function to read data and reduce beam in the standard way
     """
@@ -1362,7 +1362,7 @@ def reduce_beam(file_header, write_dir=None, write_suffix="", array_map=None,
     print("Processing beam %s." % file_header)
     beam = read_beam(file_header=file_header, array_map=array_map,
                      obs_log=obs_log, flag_ts=True, is_flat=is_flat,
-                     is_bias_step=is_bias_step)  # read data
+                     is_bias_step=is_bias_step,inject_sig=inject_sig)  # read data
     if (not beam.empty_flag_) and beam.len_ > 0:
         write_header = os.path.join(write_dir, beam.obs_id_ + write_suffix)
         result = proc_beam(
@@ -1410,7 +1410,7 @@ def reduce_beam_pair(file_header1, file_header2, write_dir=None, write_suffix=""
                      do_clean=False,
                      return_ts=False, return_pix_flag_list=False, plot=False,
                      plot_ts=False, reg_interest=None, plot_flux=False,
-                     plot_show=False, plot_save=False):
+                     plot_show=False, plot_save=False, inject_sig=None):
     """
     a wrapper function to read data and reduce beam pair in the standard way
     """
@@ -1430,7 +1430,7 @@ def reduce_beam_pair(file_header1, file_header2, write_dir=None, write_suffix=""
                                array_map=array_map, obs_log=obs_log,
                                flag_ts=True, is_flat=is_flat,
                                match_same_phase=MATCH_SAME_PHASE,
-                               stack_factor=STACK_FACTOR)
+                               stack_factor=STACK_FACTOR, inject_sig=inject_sig)
     if len(beam_pair.obs_id_list_) == 1:
         header = beam_pair.obs_id_
     else:
@@ -1560,7 +1560,7 @@ def reduce_beams(data_header, data_dir=None, write_dir=None, write_suffix="",
                  do_ica=False, spat_excl=None, do_clean=False, return_ts=False,
                  return_pix_flag_list=False,
                  plot=False, plot_ts=False, reg_interest=None, plot_flux=False,
-                 plot_show=False, plot_save=False, **kwargs):
+                 plot_show=False, plot_save=False, inject_sig=None, **kwargs):
     """
     reduce the data of beam in data_header, and return the flux of beams
     """
@@ -1660,7 +1660,7 @@ def reduce_beam_pairs(data_header, data_dir=None, write_dir=None,
                       do_clean=False,
                       return_ts=False, return_pix_flag_list=False, plot=False,
                       plot_ts=False, reg_interest=None, plot_flux=False,
-                      plot_show=False, plot_save=False, use_hk=True, **kwargs):
+                      plot_show=False, plot_save=False, use_hk=True, inject_sig=None, **kwargs):
     """
     reduce the data files in data_header by calling reduce_beam_pair() which
     stack each beam pair, and return the flux, error and weight of the beam pairs
@@ -1993,7 +1993,7 @@ def reduce_zobs(data_header, data_dir=None, write_dir=None, write_suffix="",
                 table_save=True, save_wl=True, save_atm=True, plot=True,
                 plot_ts=True, plot_atm=True, reg_interest=None,
                 plot_flux=True, plot_show=False, plot_save=True, analyze=False,
-                use_hk=True, grat_idx=None, pwv=None, elev=None):
+                use_hk=True, grat_idx=None, pwv=None, elev=None, inject_sig=None):
     """
     reduce the data from zobs command
 
@@ -2041,7 +2041,7 @@ def reduce_zobs(data_header, data_dir=None, write_dir=None, write_suffix="",
                 return_ts=return_ts | analyze,
                 return_pix_flag_list=True, plot=plot,
                 plot_ts=plot_ts, reg_interest=reg_interest, plot_flux=plot_flux,
-                plot_show=plot_show, plot_save=plot_save)
+                plot_show=plot_show, plot_save=plot_save, inject_sig=inject_sig)
         beams_flux, beams_err, beams_wt = result[:3]
         plot_dict["beam flux"] = [beams_flux, beams_err,
                                   {"c": "y", "ls": ":", "lw": 0.5}]
@@ -2098,7 +2098,7 @@ def reduce_zobs(data_header, data_dir=None, write_dir=None, write_suffix="",
                 return_ts=return_ts | analyze,
                 return_pix_flag_list=True, plot=plot, plot_ts=plot_ts,
                 reg_interest=reg_interest, plot_flux=plot_flux,
-                plot_show=plot_show, plot_save=plot_save, use_hk=use_hk)
+                plot_show=plot_show, plot_save=plot_save, use_hk=use_hk, inject_sig=inject_sig)
         beam_pairs_flux, beam_pairs_err, beam_pairs_wt = result[:3]
     plot_dict["beam pair flux"] = (beam_pairs_flux, beam_pairs_err, {"c": "k"})
     if return_ts or analyze:

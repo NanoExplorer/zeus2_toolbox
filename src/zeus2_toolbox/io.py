@@ -19,9 +19,10 @@ from datetime import datetime, timezone
 import astropy
 from astropy.table import vstack, hstack, unique, Table as Tb, Row
 
-from .mce_data import *
+from zeustools.mce_data import *
 from .tools import *
 from .convert import *
+NOD_COLNAME = "beam_is_R"
 
 FREQ = 398.72408293460927  # default data sampling frequency
 
@@ -3091,7 +3092,7 @@ class Obs(DataObj):
         return super(Obs, self).replace(**kwargs)
 
     @classmethod
-    def read(cls, filename):
+    def read(cls, filename, inject_sig=None, obs_info=None):
         """
         Read time stream from file and initialize a new Obs object with data
 
@@ -3106,7 +3107,17 @@ class Obs(DataObj):
             arr_in, obs_id = None, None
         else:
             file = SmallMCEFile(filename)  # read MCE data by SmallMCEFile() func
-            drs = file.Read(row_col=True)
+            if obs_info is not None and inject_sig is not None:
+                nod_phase = obs_info.table_[NOD_COLNAME][0]
+                if nod_phase:
+                    injector = inject_sig
+                else:
+                    injector = -inject_sig
+                #print(nod_phase)
+                drs = file.Read(row_col=True, inject_sig=injector)
+            else:
+                drs = file.Read(row_col=True, inject_sig=inject_sig)
+
             arr_in = drs.data.copy()  # 3D array of "raw" MCE data
             obs_id = filename.split("/")[-1].split(".")[0]
 
@@ -3116,7 +3127,7 @@ class Obs(DataObj):
 
     @classmethod
     def read_header(cls, filename, try_data=True, try_chop=True, try_ts=True,
-                    try_info=True, try_hk=True):
+                    try_info=True, try_hk=True, inject_sig=None):
         """
         Try to read in time stream, chop (.chop), time stamp (.ts),
             housekeeping (.hk), runfile (.run) files using the file header to
@@ -3132,10 +3143,17 @@ class Obs(DataObj):
         :return obs_new: Obs, new object
         :rtype: Obs
         """
+        if try_info:
+            try:
+                obs_info = ObsInfo.read(filename=filename, try_hk=try_hk,
+                                        try_run=True, try_mce=True)
+            except FileNotFoundError:
+                warnings.warn("%s .hk and .run not found." % filename)
+                obs_info = None
 
         if try_data:
             try:
-                obs_new = cls.read(filename=filename)
+                obs_new = cls.read(filename=filename, inject_sig=inject_sig, obs_info=obs_info)
             except FileNotFoundError:
                 warnings.warn("%s not found." % filename)
                 obs_id = filename.split("/")[-1].split(".")[0]
@@ -3155,13 +3173,10 @@ class Obs(DataObj):
                 obs_new.update_ts(ts=ts)
             except FileNotFoundError:
                 warnings.warn("%s not found." % (filename + ".ts"))
-        if try_info:
-            try:
-                obs_info = ObsInfo.read(filename=filename, try_hk=try_hk,
-                                        try_run=True, try_mce=True)
+        if try_info and obs_info is not None:
+            
                 obs_new.update_obs_info(obs_info=obs_info)
-            except FileNotFoundError:
-                warnings.warn("%s .hk and .run not found." % filename)
+          
 
         return obs_new
 
