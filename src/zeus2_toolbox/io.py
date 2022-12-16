@@ -3119,7 +3119,7 @@ class Obs(DataObj):
                 drs = file.Read(row_col=True, inject_sig=inject_sig)
 
             arr_in = drs.data.copy()  # 3D array of "raw" MCE data
-            obs_id = filename.split("/")[-1].split(".")[0]
+            obs_id = os.path.splitext(os.path.basename(filename))[0]
 
         obs_new = cls(arr_in=arr_in, obs_id=obs_id)
 
@@ -3156,10 +3156,10 @@ class Obs(DataObj):
                 obs_new = cls.read(filename=filename, inject_sig=inject_sig, obs_info=obs_info)
             except FileNotFoundError:
                 warnings.warn("%s not found." % filename)
-                obs_id = filename.split("/")[-1].split(".")[0]
+                obs_id = os.path.splitext(os.path.basename(filename))[0]
                 obs_new = cls(obs_id=obs_id)
         else:
-            obs_id = filename.split("/")[-1].split(".")[0]
+            obs_id = os.path.splitext(os.path.basename(filename))[0]
             obs_new = cls(obs_id=obs_id)
         if try_chop:
             try:

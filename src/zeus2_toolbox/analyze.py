@@ -81,7 +81,7 @@ def parallel_run(func, args_list):
     gc.collect()
     num_thread = np.clip(len(args_list), a_min=2,
                          a_max=int(MAX_THREAD_NUM * 1 / 2))
-    with multiprocessing.get_context("fork").Pool(
+    with multiprocessing.Pool(
             min(MAX_THREAD_NUM, len(args_list))) as pool:
         print("running in parallel on %i threads." % num_thread)
         results = pool.starmap(func, args_list)
