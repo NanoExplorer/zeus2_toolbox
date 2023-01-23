@@ -11,3 +11,4 @@ src/zeus2_toolbox/__pycache__/io.cpython-310.pyc
 src/zeus2_toolbox/__pycache__/pipeline.cpython-310.pyc
 src/zeus2_toolbox/__pycache__/tools.cpython-310.pyc
 src/zeus2_toolbox/__pycache__/view.cpython-310.pyc
+*.pyc
